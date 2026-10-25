@@ -2,8 +2,8 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from advanced_rag.config import get_settings
+from advanced_rag.db import models as _models  # noqa: F401
 from advanced_rag.db.base import Base
-from advanced_rag.domain import models as _models  # noqa: F401
 
 config = context.config
 settings = get_settings()
@@ -11,7 +11,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Generate migration SQL without opening a database connection."""
+    """Run migrations without opening a database connection."""
     context.configure(
         url=settings.database_url,
         target_metadata=target_metadata,
@@ -28,8 +28,8 @@ def run_migrations_online() -> None:
     """Run migrations against the configured database."""
     engine = create_engine(
         settings.database_url,
-        poolclass=pool.NullPool,
         pool_pre_ping=True,
+        poolclass=pool.NullPool,
     )
 
     try:

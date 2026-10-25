@@ -1,5 +1,5 @@
 from advanced_rag.db.base import Base
-from advanced_rag.domain.models import Document, DocumentChunk
+from advanced_rag.db.models import Document, DocumentChunk
 
 
 def test_document_tables_are_registered() -> None:
@@ -17,4 +17,5 @@ def test_document_chunk_has_document_foreign_key() -> None:
 
 def test_document_source_url_is_unique() -> None:
     table = Document.__table__
+
     assert table.c.source_url.unique is True
