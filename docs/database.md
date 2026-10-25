@@ -22,12 +22,18 @@ Print what the ORM defines (run from the repo root with the venv active; adjust 
 
 ```python
 from advanced_rag.db import models  # adjust to the actual module
-from sqlalchemy import inspect
+
 base = models.Base  # adjust if the declarative base is named differently
 for name, table in base.metadata.tables.items():
     print(name)
     for col in table.columns:
-        print("  ", col.name, col.type, "PK" if col.primary_key else "", "NULL" if col.nullable else "NOT NULL")
+        print(
+            "  ",
+            col.name,
+            col.type,
+            "PK" if col.primary_key else "",
+            "NULL" if col.nullable else "NOT NULL",
+        )
 ```
 
 And against a real database, in `psql`: `\d <table_name>`.
