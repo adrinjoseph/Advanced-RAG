@@ -1,3 +1,7 @@
+# Security
+
+## Security
+
 # Security Design
 
 > **Status:** **[Proposed]** threat model and controls. Reporting policy: [../SECURITY.md](../SECURITY.md). No control here is claimed as implemented or audited.

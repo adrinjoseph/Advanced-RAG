@@ -1,3 +1,7 @@
+# Api And Interface
+
+## Api And Ui
+
 # API and UI
 
 > **Status:** Every endpoint, schema and UI behavior here is **[Proposed]**. None exists yet. Merged from separate API and UI notes because the UI is a thin client of the API.

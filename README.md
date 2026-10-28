@@ -2,7 +2,7 @@
 
 **Evidence-grounded question answering over official Indian tax and regulatory documents using hybrid retrieval, structured generation, verifiable citations, and evidence-based abstention.**
 
-> **Research aid, not legal or tax advice.** Retrieval-augmented generation can reduce unsupported answers, but it cannot eliminate them. Valid citations do not guarantee that a claim is correct, complete, current, or applicable. See [Grounding and Abstention](docs/grounding-and-abstention.md).
+> **Research aid, not legal or tax advice.** Retrieval-augmented generation can reduce unsupported answers, but it cannot eliminate them. Valid citations do not guarantee that a claim is correct, complete, current, or applicable. See [Grounding and Abstention](docs/retrieval-and-generation.md).
 
 ## Overview
 
@@ -115,29 +115,23 @@ Library compatibility, provider configuration, and deployment requirements must 
 Advanced-RAG/
 ├── .github/                 # CI and repository automation
 ├── data/                    # Local data directories
-├── docs/                    # Project and technical documentation
-│   └── adr/                 # Architecture Decision Records
-├── evals/                   # Evaluation datasets and configuration
+├── docs/
+│   ├── adr/                 # Architecture Decision Records
+│   ├── project-specification.md
+│   ├── architecture.md
+│   ├── data-and-ingestion.md
+│   ├── retrieval-and-generation.md
+│   ├── api-and-interface.md
+│   ├── testing-and-evaluation.md
+│   ├── development-and-operations.md
+│   ├── security.md
+│   └── learning-and-interview-guide.md
+├── evals/                   # Evaluation datasets
 ├── migrations/              # Database migrations
-├── scripts/                 # Development and evaluation utilities
-├── src/
-│   └── advanced_rag/
-│       ├── api/             # HTTP routes and request/response schemas
-│       ├── config/          # Application configuration
-│       ├── db/              # Database models and repositories
-│       ├── embeddings/      # Embedding provider integration
-│       ├── evaluation/      # Retrieval and grounding evaluation
-│       ├── generation/      # Answer generation and validation
-│       ├── ingestion/       # Document processing pipeline
-│       ├── retrieval/       # Dense, lexical, and hybrid retrieval
-│       └── services/        # Application-level orchestration
-└── tests/
-    ├── unit/
-    ├── integration/
-    └── evaluation/
+├── scripts/                 # Development utilities
+├── src/advanced_rag/        # Application implementation
+└── tests/                   # Unit, integration, and evaluation tests
 ```
-
-The directory tree describes the intended separation of responsibilities; individual modules are complete only when implemented and verified by tests.
 
 ## Development environment
 
@@ -151,7 +145,7 @@ Before running the application:
 4. Install the project dependencies.
 5. Apply database migrations and prepare the evaluation dataset.
 
-Follow [Development Setup](docs/development-setup.md) for the exact commands and environment checks. Do not assume that the application is runnable until setup and tests have succeeded.
+Follow [Development Setup](docs/development-and-operations.md) for the exact commands and environment checks. Do not assume that the application is runnable until setup and tests have succeeded.
 
 ## Quality and evaluation
 
@@ -168,7 +162,7 @@ Answer evaluation should additionally check whether claims are supported by retr
 
 Metrics must be reported only after the evaluation harness has been run against a documented dataset. No benchmark scores or performance claims should be inferred from the architecture alone.
 
-See [Evaluation](docs/evaluation.md) and [Testing](docs/testing.md).
+See [Evaluation](docs/testing-and-evaluation.md) and [Testing](docs/testing-and-evaluation.md).
 
 ## Security and limitations
 
@@ -179,7 +173,7 @@ See [Evaluation](docs/evaluation.md) and [Testing](docs/testing.md).
 - Document amendments, effective dates, and source provenance must be handled carefully.
 - Citation validation improves inspectability but does not prove legal correctness.
 
-Review [Security](docs/security.md), [Data Sources](docs/data-sources.md), and [Grounding and Abstention](docs/grounding-and-abstention.md).
+Review [Security](docs/security.md), [Data Sources](docs/data-and-ingestion.md), and [Grounding and Abstention](docs/retrieval-and-generation.md).
 
 ## Roadmap
 
@@ -194,18 +188,18 @@ The sequence may change as implementation and evaluation reveal the most importa
 
 ## Documentation
 
-| Area | Documents |
+| Area | Document |
 |---|---|
-| Requirements | [Project Specification](docs/project-specification.md), [Glossary](docs/glossary.md) |
-| Architecture | [Architecture](docs/architecture.md), [Data Flow](docs/data-flow.md), [ADRs](docs/adr/README.md) |
-| Data | [Data Sources](docs/data-sources.md), [Database](docs/database.md), [Ingestion](docs/ingestion.md) |
-| Retrieval and generation | [Retrieval](docs/retrieval.md), [Generation](docs/generation.md), [Grounding and Abstention](docs/grounding-and-abstention.md) |
-| Interfaces | [API and UI](docs/api-and-ui.md) |
-| Quality | [Evaluation](docs/evaluation.md), [Testing](docs/testing.md) |
-| Operations | [Observability](docs/observability.md), [Caching](docs/caching.md), [Deployment](docs/deployment.md), [Development Setup](docs/development-setup.md) |
-| Security | [Security](docs/security.md), [Security Policy](SECURITY.md) |
-| Learning | [Learning Guide](docs/learning-guide.md), [Interview Guide](docs/interview-guide.md) |
-| Contribution | [Contributing](CONTRIBUTING.md) |
+| Requirements and scope | [Project Specification](docs/project-specification.md) |
+| Architecture and database | [Architecture](docs/architecture.md) |
+| Data sources and ingestion | [Data and Ingestion](docs/data-and-ingestion.md) |
+| Retrieval, generation, citations and abstention | [Retrieval and Generation](docs/retrieval-and-generation.md) |
+| API and interface | [API and Interface](docs/api-and-interface.md) |
+| Tests and quality metrics | [Testing and Evaluation](docs/testing-and-evaluation.md) |
+| Setup, observability, caching and deployment | [Development and Operations](docs/development-and-operations.md) |
+| Security | [Security](docs/security.md) |
+| Learning and interview preparation | [Learning and Interview Guide](docs/learning-and-interview-guide.md) |
+| Architecture decisions | [ADRs](docs/adr/README.md) |
 
 ## Disclaimer
 

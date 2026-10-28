@@ -15,11 +15,11 @@
 
 ## Testing requirements
 
-New behavior needs tests ([testing strategy](docs/testing.md)). Providers are mocked; no test may use the network. Retrieval or prompt changes need an evaluation run compared against the previous baseline ([evaluation](docs/evaluation.md)).
+New behavior needs tests ([testing strategy](docs/testing-and-evaluation.md)). Providers are mocked; no test may use the network. Retrieval or prompt changes need an evaluation run compared against the previous baseline ([evaluation](docs/testing-and-evaluation.md)).
 
 ## Documentation expectations
 
-If you change behavior, update the matching doc in the same PR, keep status tags honest (Proposed → Implemented only via the README status table), update the ADR or write a new one for significant decisions ([ADR guide](docs/adr/README.md)), and keep component names canonical ([glossary](docs/glossary.md)).
+If you change behavior, update the matching doc in the same PR, keep status tags honest (Proposed → Implemented only via the README status table), update the ADR or write a new one for significant decisions ([ADR guide](docs/adr/README.md)), and keep component names canonical ([glossary](docs/learning-and-interview-guide.md)).
 
 ## Pull-request checklist
 
