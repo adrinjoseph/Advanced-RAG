@@ -1,32 +1,81 @@
-# Contributing
+# Contributing to Advanced-RAG
 
-> Tooling named here (Ruff, pytest, CI) is **[Planned]** until its configuration exists in the repo.
+Thank you for helping improve Advanced-RAG. Contributions should make the system more correct, understandable, secure, testable, or maintainable—not simply larger.
 
-## Workflow
+## Before making a change
 
-1. Open or pick an issue; keep changes small and focused.
-2. Branch from `main`: `feat/<topic>`, `fix/<topic>`, `docs/<topic>`, `test/<topic>`.
-3. Commit with Conventional Commits: `feat(retrieval): add RRF fusion`, `fix(ingestion): handle empty pages`, `docs: update database ER diagram`.
-4. Open a pull request; do not push directly to `main`.
+1. Read the [README](README.md) to understand the project goal.
+2. Review the [architecture](docs/architecture.md) and [architecture decision record](docs/decisions/0001-architecture-and-technology-stack.md).
+3. Check existing issues and discussions to avoid duplicating work.
+4. For significant design changes, explain the problem and trade-offs before implementing them.
 
-## Code quality
+## Contribution principles
 
-`ruff check .` and `ruff format --check .` must pass; type hints on public functions; no secrets, no print-debugging in committed code.
+- Keep changes focused and easy to review.
+- Preserve source provenance through ingestion, chunking, retrieval, and citations.
+- Never invent legal facts, document metadata, citations, or evaluation results.
+- Treat insufficient evidence as a valid reason to abstain.
+- Use parameterized database operations; never concatenate untrusted input into SQL.
+- Do not commit secrets, tokens, credentials, private documents, or user data.
+- Avoid adding dependencies or infrastructure without a demonstrated need.
+- Update documentation when behavior or architecture changes.
+- Do not claim a feature works until tests or reproducible checks support the claim.
 
-## Testing requirements
+## Development workflow
 
-New behavior needs tests ([testing strategy](docs/testing-and-evaluation.md)). Providers are mocked; no test may use the network. Retrieval or prompt changes need an evaluation run compared against the previous baseline ([evaluation](docs/testing-and-evaluation.md)).
+The exact installation and test commands will be finalized after the dependency configuration is verified. Until then, do not assume a command is supported merely because it appears in an example elsewhere.
 
-## Documentation expectations
+The intended workflow is:
 
-If you change behavior, update the matching doc in the same PR, keep status tags honest (Proposed → Implemented only via the README status table), update the ADR or write a new one for significant decisions ([ADR guide](docs/adr/README.md)), and keep component names canonical ([glossary](docs/learning-and-interview-guide.md)).
+```mermaid
+flowchart TD
+    A[Understand issue] --> B[Discuss design if needed]
+    B --> C[Create focused branch]
+    C --> D[Implement small change]
+    D --> E[Add or update tests]
+    E --> F[Run lint, tests, and relevant evaluation]
+    F --> G{Checks pass?}
+    G -- No --> D
+    G -- Yes --> H[Review diff and documentation]
+    H --> I[Open pull request]
+    I --> J[CI review and feedback]
+```
 
-## Pull-request checklist
+## Pull requests
 
-- [ ] Tests added or updated and passing
-- [ ] Lint and format pass
-- [ ] Docs and README status table updated
-- [ ] No secrets or real personal data
-- [ ] No new dependency without checking Python 3.14 support and licence
-- [ ] Evaluation compared, if retrieval/generation changed
-- [ ] ADR added for any significant decision
+A useful pull request should include:
+
+- **Problem:** What is wrong or missing?
+- **Change:** What did you change and why?
+- **Validation:** Which tests, lint checks, or evaluation checks ran?
+- **Evidence:** Include relevant output or before/after metrics when available.
+- **Risks:** Note limitations, migrations, compatibility concerns, or behavior changes.
+- **Documentation:** Identify any docs updated.
+
+Keep pull requests narrow. Separate unrelated refactoring from functional changes.
+
+## Testing expectations
+
+Add or update tests for the behavior you change. Depending on the change, consider:
+- chunk boundaries and preservation of source metadata;
+- lexical and semantic retrieval behavior;
+- rank fusion and metadata filters;
+- insufficient-evidence abstention;
+- citation traceability;
+- API validation and safe error responses;
+- database failure handling; and
+- regression checks using the evaluation set.
+
+Tests should not require production credentials or incur cloud costs. Mock or isolate external integrations where appropriate.
+
+## Documentation and claims
+
+Keep README instructions concise and reproducible. Architecture diagrams must match the implementation. Label unimplemented features as planned. Publish performance or quality metrics only when the measurement method and results can be reproduced.
+
+## Security issues
+
+Do not report exploitable vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md).
+
+## Community standards
+
+Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
