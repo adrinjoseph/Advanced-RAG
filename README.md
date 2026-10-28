@@ -1,206 +1,346 @@
 # Advanced-RAG
 
-**Evidence-grounded question answering over official Indian tax and regulatory documents using hybrid retrieval, structured generation, verifiable citations, and evidence-based abstention.**
+### Making Indian legal information easier to understand, verify, and access.
 
-> **Research aid, not legal or tax advice.** Retrieval-augmented generation can reduce unsupported answers, but it cannot eliminate them. Valid citations do not guarantee that a claim is correct, complete, current, or applicable. See [Grounding and Abstention](docs/retrieval-and-generation.md).
+An evidence-grounded, multilingual AI assistant for understanding Indian legal documents, locating relevant legal provisions, and navigating complex legal information with source-linked explanations.
 
-## Overview
+> **Important:** This is an engineering project and legal-information aid, not a lawyer or a substitute for qualified legal advice. It must not present generated explanations as definitive legal conclusions.
 
-Advanced-RAG is a production-oriented retrieval-augmented generation (RAG) system designed to answer questions about Indian tax and regulatory material using retrieved documentary evidence.
+## The Problem
 
-Tax and regulatory documents can be lengthy, frequently amended, and distributed across multiple official sources. Keyword search can miss paraphrased questions, vector search can miss exact statutory identifiers, and language models can generate unsupported claims.
+India has **millions of pending court cases**. Many people struggle to access affordable legal help, and legal documents are often written in language ordinary people find difficult to understand. When someone's landlord withholds their deposit, their employer withholds wages, or they face a legal allegation they do not understand, figuring out what the law says and what to do next can be overwhelming.
 
-Advanced-RAG combines semantic and lexical retrieval, rank fusion, structured answer generation, citation validation, and explicit abstention to make answers easier to inspect and evaluate.
+Existing digital tools leave important gaps:
 
-The project is intended for researchers of Indian tax information, engineers learning applied RAG, and technical reviewers evaluating evidence-grounded AI systems.
+- **Search engines return documents, not explanations.** Finding a relevant PDF does not mean understanding the provision that applies.
+- **Generic AI chatbots can hallucinate.** An invented section number, outdated provision, or incorrect procedural claim can have serious consequences.
+- **Scanned documents are difficult to search.** Important text may be trapped inside image-based PDFs or low-quality scans.
+- **Jurisdiction matters.** Central legislation, state amendments, state rules, and local procedures may differ.
+- **Language is a barrier.** People may need explanations in their preferred regional language rather than formal legal English.
+- **Sources and dates matter.** A provision may have been amended, repealed, or brought into force on a particular date.
 
-See the [Project Specification](docs/project-specification.md) for requirements and scope.
+The goal is not to replace lawyers or courts. It is to help people understand legal information, inspect the underlying sources, and identify when professional or legal-aid assistance may be appropriate.
 
-## Core capabilities
+India's National Judicial Data Grid publishes court-pendency statistics: [NJDG](https://njdg.ecourts.gov.in/). Free legal services are also available to eligible people through legal services institutions: [NALSA](https://nalsa.gov.in/legal-aid/).
 
-The system is designed around the following capabilities:
+## The Proposed Solution
 
-- **Document ingestion:** reproducible ingestion with source provenance, content hashes, version tracking, cleaning, and chunking.
-- **Hybrid retrieval:** dense vector search using pgvector combined with PostgreSQL full-text search.
-- **Reciprocal Rank Fusion (RRF):** combining retrieval rankings without requiring raw scores from different retrievers to be directly comparable.
-- **Metadata-aware retrieval:** filtering evidence using document metadata, including status and effective dates where the source data supports them.
-- **Structured generation:** validated answer schemas using Pydantic v2.
-- **Verifiable citations:** citations linked to retrieved evidence, with quote-level validation.
-- **Evidence-based abstention:** declining to provide a substantive answer when the available evidence is insufficient, with explicit reason codes.
-- **Evaluation:** retrieval metrics, answer-grounding checks, citation checks, and a curated golden evaluation dataset.
-- **API and observability:** a FastAPI interface, structured logging, and clear boundaries for later tracing and performance monitoring.
+Advanced-RAG is designed to turn complex legal documents into **understandable, evidence-linked explanations**.
 
-These are the target capabilities of the project. See the implementation and tests for the features that are operational in the current revision.
+A user should be able to ask a question in plain language, provide a legal document, or ask about a relevant provision. The system should retrieve the most relevant official material, explain it in accessible language, identify the jurisdiction and source date when available, and show the passages supporting its response.
 
-## Architecture
+If the system cannot establish an adequate evidentiary basis, it should say so instead of inventing an answer.
 
-The architecture separates document ingestion from online question answering.
+### Core objectives
+
+- Explain legal language in plain language without silently changing its meaning.
+- Retrieve relevant statutes, rules, judgments, and other approved legal sources.
+- Process searchable PDFs and, when implemented, scanned documents using OCR.
+- Support multilingual questions and explanations through explicitly configured language capabilities.
+- Respect jurisdiction, amendments, effective dates, and source provenance.
+- Cite the actual retrieved passages used to support an explanation.
+- Distinguish sourced facts from interpretation, uncertainty, and missing evidence.
+- Abstain when evidence is insufficient, conflicting, or not verified.
+- Direct users toward qualified legal professionals or appropriate legal-aid services when needed.
+
+These are project objectives, not claims that every capability is already implemented.
+
+## How It Works
+
+### 1. System architecture
 
 ```mermaid
-flowchart LR
-    subgraph Offline["Offline ingestion"]
-        SRC["Official documents and manifests"] --> ING["Ingestion pipeline"]
-        ING --> EMB["Embedding provider"]
-        ING --> DB[("PostgreSQL + pgvector")]
+flowchart TB
+    subgraph SOURCES["Official and approved legal sources"]
+        STATUTES["Central legislation"]
+        STATE["State laws and rules"]
+        JUDGMENTS["Judgments and orders"]
+        USERDOCS["User-provided legal documents"]
     end
 
-    subgraph Online["Question answering"]
-        Q["User question"] --> API["FastAPI"]
-        API --> RET["Hybrid retrieval"]
-        RET --> DB
-        RET --> FUSION["Reciprocal Rank Fusion"]
-        FUSION --> CTX["Evidence context"]
-        CTX --> GEN["Structured generation"]
-        GEN --> VAL["Citation and grounding validation"]
-        VAL --> OUT["Answer or abstention"]
+    subgraph INGESTION["Document processing and indexing"]
+        COLLECT["Source collection and provenance"]
+        EXTRACT["Text extraction"]
+        OCR{"Scanned or image-based PDF?"}
+        OCRPROC["OCR and text-quality checks"]
+        CLEAN["Normalize and structure text"]
+        METADATA["Attach jurisdiction, dates,<br/>document type and source metadata"]
+        CHUNK["Structure-aware chunking"]
+        EMBED["Embedding generation"]
+        INDEX[("PostgreSQL + pgvector<br/>and full-text index")]
+
+        COLLECT --> EXTRACT --> OCR
+        OCR -->|Yes| OCRPROC --> CLEAN
+        OCR -->|No| CLEAN
+        CLEAN --> METADATA --> CHUNK
+        CHUNK --> EMBED --> INDEX
+        CHUNK --> INDEX
     end
 
-    EMB --> RET
-    GEN --> LLM["LLM provider"]
+    STATUTES --> COLLECT
+    STATE --> COLLECT
+    JUDGMENTS --> COLLECT
+    USERDOCS --> COLLECT
+
+    subgraph QA["Evidence-grounded question answering"]
+        USER["User question"]
+        LANG["Language and question handling"]
+        RETRIEVE["Hybrid retrieval"]
+        DENSE["Semantic retrieval"]
+        LEXICAL["Keyword and statutory-term search"]
+        FUSION["Reciprocal Rank Fusion"]
+        FILTER["Jurisdiction, source and date checks"]
+        CONTEXT["Rank and assemble evidence"]
+        SUFFICIENCY{"Enough reliable evidence?"}
+        GENERATE["Structured answer generation"]
+        VALIDATE["Validate citations and support"]
+        DECISION{"Answer passes checks?"}
+        ANSWER["Plain-language explanation<br/>with source references"]
+        ABSTAIN["Explain uncertainty or abstain"]
+        UI["Conversational interface"]
+
+        USER --> LANG --> RETRIEVE
+        RETRIEVE --> DENSE
+        RETRIEVE --> LEXICAL
+        DENSE --> FUSION
+        LEXICAL --> FUSION
+        FUSION --> FILTER --> CONTEXT --> SUFFICIENCY
+        SUFFICIENCY -->|Yes| GENERATE --> VALIDATE --> DECISION
+        SUFFICIENCY -->|No| ABSTAIN
+        DECISION -->|Yes| ANSWER
+        DECISION -->|No| ABSTAIN
+        ANSWER --> UI
+        ABSTAIN --> UI
+    end
+
+    INDEX --> DENSE
+    INDEX --> LEXICAL
+    UI --> USER
+
+    LLM["Configured language-model provider"]
+    GENERATE <--> LLM
+
+    classDef storage fill:#e8f1ff,stroke:#3767a6,color:#142b4a
+    classDef decision fill:#fff1d6,stroke:#b7791f,color:#593800
+    classDef safe fill:#e5f5e9,stroke:#37834a,color:#163d20
+    class INDEX storage
+    class OCR,SUFFICIENCY,DECISION decision
+    class ANSWER,ABSTAIN safe
 ```
 
-### Ingestion flow
+### 2. Document ingestion and OCR
 
 ```mermaid
-flowchart LR
-    A["Document and manifest"] --> B["Hash and identify"]
-    B --> C["Parse and clean"]
-    C --> D["Chunk and attach metadata"]
-    D --> E["Generate embeddings"]
-    E --> F["Persist records and provenance"]
+flowchart TD
+    A["Official source or uploaded document"]
+    B["Identify source, jurisdiction and version"]
+    C["Extract PDF, HTML or text"]
+    D{"Text sufficiently readable?"}
+    E["Run OCR on scanned pages"]
+    F["Check extraction quality"]
+    G{"Text quality acceptable?"}
+    H["Flag for review or reject unreliable extraction"]
+    I["Clean and preserve document structure"]
+    J["Attach metadata and effective dates"]
+    K["Create searchable chunks"]
+    L["Generate embeddings"]
+    M[("PostgreSQL, pgvector<br/>and full-text search")]
+    N["Record provenance and ingestion status"]
+
+    A --> B --> C --> D
+    D -->|Yes| I
+    D -->|No| E --> F --> G
+    G -->|No| H
+    G -->|Yes| I
+    I --> J --> K
+    K --> L --> M
+    K --> M
+    M --> N
+
+    classDef decision fill:#fff1d6,stroke:#b7791f,color:#593800
+    classDef storage fill:#e8f1ff,stroke:#3767a6,color:#142b4a
+    class D,G decision
+    class M storage
 ```
 
-### Query flow
+OCR is not automatically trustworthy. Poor scans, missing pages, or extraction errors must be detected where possible rather than silently treated as authoritative text.
+
+### 3. User question to grounded answer
 
 ```mermaid
-flowchart LR
-    A["Question"] --> B["Validate input"]
-    B --> C["Dense retrieval"]
-    B --> D["Lexical retrieval"]
-    C --> E["RRF fusion"]
-    D --> E
-    E --> F["Evidence context"]
-    F --> G["Structured generation"]
-    G --> H["Citation validation"]
-    H --> I["Answer or abstention"]
+flowchart TD
+    A["User asks a legal question"]
+    B["Validate input and identify language"]
+    C["Clarify missing jurisdiction or date<br/>when materially necessary"]
+    D["Search semantic and lexical indexes"]
+    E["Fuse and rank candidate passages"]
+    F["Check source authority, jurisdiction<br/>and temporal relevance"]
+    G["Build evidence set with source IDs"]
+    H{"Evidence sufficient and relevant?"}
+    I["Generate structured explanation<br/>using retrieved evidence"]
+    J["Check claims against evidence"]
+    K["Validate source references and quotations"]
+    L{"All required checks pass?"}
+    M["Return explanation, citations,<br/>limitations and relevant dates"]
+    N["Abstain or explain what is missing"]
+    O["Where appropriate, show official<br/>legal-aid or professional-help resources"]
+
+    A --> B --> C --> D --> E --> F --> G --> H
+    H -->|Yes| I --> J --> K --> L
+    H -->|No| N
+    L -->|Yes| M
+    L -->|No| N
+    N --> O
 ```
 
-## Technology stack
+A valid citation is not proof that the entire answer is legally correct. The system must also consider whether the cited source applies to the question, jurisdiction, and relevant date.
 
-| Area | Technology |
+## Technology Stack
+
+| Area | Intended technology |
 |---|---|
 | Language | Python |
 | API | FastAPI |
-| Data validation | Pydantic v2 |
-| Database access | SQLAlchemy 2.x async |
-| Database driver | asyncpg |
+| Schemas and settings | Pydantic v2, Pydantic Settings |
+| Database access | SQLAlchemy 2.x async, asyncpg |
 | Database | PostgreSQL with pgvector |
-| Database migrations | Alembic |
-| Embeddings and language models | Provider integration selected through configuration |
-| Retrieval | Vector similarity, PostgreSQL full-text search, and RRF |
+| Lexical search | PostgreSQL full-text search |
+| Migrations | Alembic |
+| Retrieval | Dense search, lexical search, Reciprocal Rank Fusion |
+| OCR | A suitable OCR engine, selected and evaluated during implementation |
+| Language models | Configurable provider integration |
+| Embeddings | Configurable embedding provider |
+| UI | Chainlit |
+| Optional caching | Redis |
+| Observability | Structured logging and optional Langfuse tracing |
 | Testing | pytest |
-| Code quality | Ruff |
-| Automation | GitHub Actions |
-| Interactive UI | Chainlit |
-| Caching | Redis |
-| Observability | Structured logging; Langfuse integration |
+| Linting | Ruff |
+| CI | GitHub Actions |
 
-The core architecture does not depend on LangChain, LangGraph, or Pinecone.
+Provider choices, OCR accuracy, multilingual performance, and library compatibility must be verified against actual requirements and tests. The core architecture should remain modular and local-development friendly.
 
-Library compatibility, provider configuration, and deployment requirements must be verified against the actual development environment. Optional components should be introduced only when they provide a clear benefit.
-
-## Repository structure
+## Repository Structure
 
 ```text
 Advanced-RAG/
-├── .github/                 # CI and repository automation
-├── data/                    # Local data directories
+├── .github/
+│   └── workflows/                 # CI automation
+├── data/
+│   ├── raw/                        # Original documents, subject to access rules
+│   ├── processed/                  # Extracted and cleaned documents
+│   ├── indexes/                    # Index artifacts
+│   └── manifests/                  # Source and ingestion metadata
 ├── docs/
-│   ├── adr/                 # Architecture Decision Records
+│   ├── adr/                        # Architecture Decision Records
 │   ├── project-specification.md
 │   ├── architecture.md
 │   ├── data-and-ingestion.md
 │   ├── retrieval-and-generation.md
 │   ├── api-and-interface.md
+│   ├── ui-and-user-experience.md
+│   ├── caching-and-performance.md
+│   ├── observability-and-tracing.md
 │   ├── testing-and-evaluation.md
 │   ├── development-and-operations.md
 │   ├── security.md
 │   └── learning-and-interview-guide.md
-├── evals/                   # Evaluation datasets
-├── migrations/              # Database migrations
-├── scripts/                 # Development utilities
-├── src/advanced_rag/        # Application implementation
-└── tests/                   # Unit, integration, and evaluation tests
+├── evals/                          # Golden cases and evaluation schemas
+├── migrations/                     # Alembic migrations
+├── scripts/                        # Development and evaluation tools
+├── src/advanced_rag/
+│   ├── api/
+│   ├── cache/
+│   ├── config/
+│   ├── db/
+│   ├── embeddings/
+│   ├── evaluation/
+│   ├── generation/
+│   ├── ingestion/
+│   ├── observability/
+│   ├── retrieval/
+│   ├── services/
+│   └── ui/
+└── tests/
+    ├── unit/
+    ├── integration/
+    └── evaluation/
 ```
 
-## Development environment
+This represents the intended project layout. Empty scaffolding does not imply an implemented feature.
 
-The primary development target is **Windows 11 with native PostgreSQL**. Development should remain local-first, with external API usage controlled through configuration.
+## Safety, Privacy and Legal Boundaries
 
-Before running the application:
+Legal information can affect people's housing, employment, finances, liberty, and rights. Safety is a core engineering requirement.
 
-1. Install a compatible Python version and create a project virtual environment.
-2. Install PostgreSQL and configure pgvector.
-3. Configure environment variables using [.env.example](.env.example).
-4. Install the project dependencies.
-5. Apply database migrations and prepare the evaluation dataset.
+- **Ground answers in sources:** do not invent provisions, case citations, quotations, or legal outcomes.
+- **Respect jurisdiction:** distinguish central law from applicable state-specific legislation and rules.
+- **Track time:** retain publication, amendment, and effective-date metadata where available.
+- **Preserve uncertainty:** explain when source coverage or interpretation is incomplete.
+- **Protect user documents:** do not expose uploaded documents, personal details, credentials, or case information through logs or shared caches.
+- **Treat documents as untrusted input:** retrieved text must not override system safety rules.
+- **Do not guarantee outcomes:** legal rights and remedies depend on facts, evidence, procedure, and applicable law.
+- **Provide appropriate referrals:** where relevant, help users locate official legal-aid resources instead of implying that an AI response replaces a lawyer.
 
-Follow [Development Setup](docs/development-and-operations.md) for the exact commands and environment checks. Do not assume that the application is runnable until setup and tests have succeeded.
+Official resources:
+- [National Judicial Data Grid](https://njdg.ecourts.gov.in/)
+- [National Legal Services Authority — Legal Aid](https://nalsa.gov.in/legal-aid/)
 
-## Quality and evaluation
+## Evaluation Plan
 
-Advanced-RAG is designed to be evaluated on retrieval quality, answer grounding, citation validity, and abstention behavior.
+The system must be evaluated before making claims about accuracy or reliability.
 
-Retrieval evaluation can include:
+**Retrieval**
+- Hit@K and Recall@K
+- Mean Reciprocal Rank (MRR)
+- nDCG@K
+- Performance by jurisdiction, document type, and query style
 
-- **Hit@K:** whether a relevant result appears in the top K.
-- **Recall@K:** the proportion of relevant evidence retrieved in the top K.
-- **MRR:** the reciprocal rank of the first relevant result.
-- **nDCG@K:** ranking quality that accounts for relevance and position.
+**Evidence and answer quality**
+- Citation validity and passage-level support
+- Unsupported-claim rate
+- Appropriate abstention rate
+- Correct handling of conflicting or outdated sources
+- OCR extraction quality on representative scanned documents
 
-Answer evaluation should additionally check whether claims are supported by retrieved evidence, citations resolve to the correct source passages, and insufficient evidence triggers abstention.
+**Multilingual quality**
+- Retrieval and answer quality across each supported language
+- Preservation of legal meaning in explanations and translations
+- Correct handling of legal terms, names, and statutory references
 
-Metrics must be reported only after the evaluation harness has been run against a documented dataset. No benchmark scores or performance claims should be inferred from the architecture alone.
+Every reported metric must come from a reproducible evaluation run against a documented dataset. No benchmark scores are claimed at this stage.
 
-See [Evaluation](docs/testing-and-evaluation.md) and [Testing](docs/testing-and-evaluation.md).
+## Implementation Roadmap
 
-## Security and limitations
+1. **Foundation:** project configuration, settings, logging, API entry point and tests.
+2. **Legal corpus:** source policy, provenance model, document metadata and ingestion pipeline.
+3. **Document understanding:** PDF extraction, OCR, quality checks and structure-aware chunking.
+4. **Retrieval:** embeddings, PostgreSQL full-text search, hybrid retrieval and RRF.
+5. **Grounded generation:** structured answers, citation validation, jurisdiction checks and abstention.
+6. **User experience:** API and Chainlit interface, source inspection and understandable error states.
+7. **Language support:** select supported languages and evaluate retrieval and generation quality per language.
+8. **Reliability:** golden evaluation set, regression tests, security checks and observability.
+9. **Optimization:** optional Redis caching, performance measurement and deployment hardening.
 
-- Retrieved documents are untrusted input and may contain misleading instructions or content.
-- External model and embedding providers may receive questions and selected evidence passages.
-- The initial local-development configuration is not a substitute for production authentication, authorization, or operational security.
-- Corpus coverage depends on the documents actually ingested.
-- Document amendments, effective dates, and source provenance must be handled carefully.
-- Citation validation improves inspectability but does not prove legal correctness.
-
-Review [Security](docs/security.md), [Data Sources](docs/data-and-ingestion.md), and [Grounding and Abstention](docs/retrieval-and-generation.md).
-
-## Roadmap
-
-Development follows this sequence:
-
-1. **Core pipeline:** configuration, database models, ingestion, embeddings, hybrid retrieval, RRF, structured generation, citations, and abstention.
-2. **API and evaluation:** API integration, automated tests, golden-set evaluation, and quality reporting.
-3. **Developer experience:** interactive UI, observability, and improved debugging.
-4. **Performance and deployment:** caching, streaming where justified, optional reranking, and deployment hardening.
-
-The sequence may change as implementation and evaluation reveal the most important gaps.
+Each milestone should be implemented, tested, and reviewed before being described as complete.
 
 ## Documentation
 
-| Area | Document |
+| Topic | Document |
 |---|---|
-| Requirements and scope | [Project Specification](docs/project-specification.md) |
-| Architecture and database | [Architecture](docs/architecture.md) |
-| Data sources and ingestion | [Data and Ingestion](docs/data-and-ingestion.md) |
-| Retrieval, generation, citations and abstention | [Retrieval and Generation](docs/retrieval-and-generation.md) |
-| API and interface | [API and Interface](docs/api-and-interface.md) |
-| Tests and quality metrics | [Testing and Evaluation](docs/testing-and-evaluation.md) |
-| Setup, observability, caching and deployment | [Development and Operations](docs/development-and-operations.md) |
+| Scope and requirements | [Project Specification](docs/project-specification.md) |
+| Architecture | [Architecture](docs/architecture.md) |
+| Legal sources and ingestion | [Data and Ingestion](docs/data-and-ingestion.md) |
+| Retrieval, generation and grounding | [Retrieval and Generation](docs/retrieval-and-generation.md) |
+| API | [API and Interface](docs/api-and-interface.md) |
+| User experience | [UI and User Experience](docs/ui-and-user-experience.md) |
+| Caching | [Caching and Performance](docs/caching-and-performance.md) |
+| Logs and tracing | [Observability and Tracing](docs/observability-and-tracing.md) |
+| Testing and evaluation | [Testing and Evaluation](docs/testing-and-evaluation.md) |
+| Setup and operations | [Development and Operations](docs/development-and-operations.md) |
 | Security | [Security](docs/security.md) |
-| Learning and interview preparation | [Learning and Interview Guide](docs/learning-and-interview-guide.md) |
+| Learning and interviews | [Learning and Interview Guide](docs/learning-and-interview-guide.md) |
 | Architecture decisions | [ADRs](docs/adr/README.md) |
 
-## Disclaimer
+---
 
-Advanced-RAG is an engineering and research project for exploring evidence-grounded question answering. It is not a substitute for advice from a qualified tax professional or lawyer. Users should consult the applicable official source and a qualified professional before making legal, financial, or tax decisions.
+**Vision:** make complex Indian legal information easier to find, understand, and verify — while keeping evidence, uncertainty, privacy, and access to qualified human help at the centre.
