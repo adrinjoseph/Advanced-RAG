@@ -1,118 +1,212 @@
 # Advanced-RAG
 
-Evidence-grounded question answering over official Indian tax and regulatory documents: hybrid retrieval, structured generation, verifiable citations, and abstention when evidence is insufficient.
+**Evidence-grounded question answering over official Indian tax and regulatory documents using hybrid retrieval, structured generation, verifiable citations, and evidence-based abstention.**
 
-> **Research aid, not legal or tax advice.** RAG reduces unsupported answers; it does not eliminate them. Valid citations do not guarantee a claim is correct or applicable ([details](docs/grounding-and-abstention.md)).
+> **Research aid, not legal or tax advice.** Retrieval-augmented generation can reduce unsupported answers, but it cannot eliminate them. Valid citations do not guarantee that a claim is correct, complete, current, or applicable. See [Grounding and Abstention](docs/grounding-and-abstention.md).
 
-## Implementation status
+## Overview
 
-Honest status table. Update it as work lands; this is the only place a feature becomes **[Implemented]**.
+Advanced-RAG is a production-oriented retrieval-augmented generation (RAG) system designed to answer questions about Indian tax and regulatory material using retrieved documentary evidence.
 
-| Capability | Status |
-|---|---|
-| Ingestion Pipeline | **[Proposed]** |
-| Dense + lexical retrieval + RRF | **[Proposed]** |
-| Structured generation, citation validation, abstention | **[Proposed]** |
-| REST API | **[Proposed]** |
-| Chainlit UI | **[Planned]** |
-| Evaluation Harness | **[Proposed]** |
-| Redis cache, SSE, Langfuse | **[Planned]** |
-| Deployment | **[Planned]**, nothing deployed |
+Tax and regulatory documents can be lengthy, frequently amended, and distributed across multiple official sources. Keyword search can miss paraphrased questions, vector search can miss exact statutory identifiers, and language models can generate unsupported claims.
 
-No measurements, datasets or benchmarks exist yet, and none are claimed.
+Advanced-RAG combines semantic and lexical retrieval, rank fusion, structured answer generation, citation validation, and explicit abstention to make answers easier to inspect and evaluate.
 
-## Problem and users
+The project is intended for researchers of Indian tax information, engineers learning applied RAG, and technical reviewers evaluating evidence-grounded AI systems.
 
-Tax and regulatory material is long, amended and scattered. Keyword search misses paraphrase, vector search misses exact identifiers, and ungrounded LLMs invent. Intended users: researchers of Indian tax information, engineers studying grounded RAG, and technical reviewers. Full statement: [project specification](docs/project-specification.md).
+See the [Project Specification](docs/project-specification.md) for requirements and scope.
 
-## Key capabilities (design)
+## Core capabilities
 
-- Idempotent, versioned ingestion with full provenance
-- Dense (pgvector) and lexical (PostgreSQL full-text) retrieval fused by RRF
-- Metadata filters for document status and effective date
-- Structured answers (Pydantic v2) with quote-anchored citations
-- Explicit abstention with reason codes
-- Golden-set evaluation with retrieval and answer metrics
+The system is designed around the following capabilities:
+
+- **Document ingestion:** reproducible ingestion with source provenance, content hashes, version tracking, cleaning, and chunking.
+- **Hybrid retrieval:** dense vector search using pgvector combined with PostgreSQL full-text search.
+- **Reciprocal Rank Fusion (RRF):** combining retrieval rankings without requiring raw scores from different retrievers to be directly comparable.
+- **Metadata-aware retrieval:** filtering evidence using document metadata, including status and effective dates where the source data supports them.
+- **Structured generation:** validated answer schemas using Pydantic v2.
+- **Verifiable citations:** citations linked to retrieved evidence, with quote-level validation.
+- **Evidence-based abstention:** declining to provide a substantive answer when the available evidence is insufficient, with explicit reason codes.
+- **Evaluation:** retrieval metrics, answer-grounding checks, citation checks, and a curated golden evaluation dataset.
+- **API and observability:** a FastAPI interface, structured logging, and clear boundaries for later tracing and performance monitoring.
+
+These are the target capabilities of the project. See the implementation and tests for the features that are operational in the current revision.
 
 ## Architecture
 
+The architecture separates document ingestion from online question answering.
+
 ```mermaid
 flowchart LR
-  subgraph OFF["Offline"]
-    SRC["Official PDFs + manifests"] --> ING["Ingestion Pipeline"]
-  end
-  subgraph ON["Online"]
-    UI["Chainlit UI"] --> API["API (FastAPI)"]
-    API --> RET["Retrieval Service"]
-    API --> GEN["Generation Service"]
-    API --> VAL["Grounding Validator"]
-  end
-  ING --> DB[("PostgreSQL + pgvector")]
-  RET --> DB
-  VAL --> DB
-  GEN --> LLM["LLM provider"]
-  ING --> EMB["Embedding provider"]
-  RET --> EMB
+    subgraph Offline["Offline ingestion"]
+        SRC["Official documents and manifests"] --> ING["Ingestion pipeline"]
+        ING --> EMB["Embedding provider"]
+        ING --> DB[("PostgreSQL + pgvector")]
+    end
+
+    subgraph Online["Question answering"]
+        Q["User question"] --> API["FastAPI"]
+        API --> RET["Hybrid retrieval"]
+        RET --> DB
+        RET --> FUSION["Reciprocal Rank Fusion"]
+        FUSION --> CTX["Evidence context"]
+        CTX --> GEN["Structured generation"]
+        GEN --> VAL["Citation and grounding validation"]
+        VAL --> OUT["Answer or abstention"]
+    end
+
+    EMB --> RET
+    GEN --> LLM["LLM provider"]
 ```
 
 ### Ingestion flow
 
 ```mermaid
 flowchart LR
-  A["PDF + manifest"] --> B["Hash"] --> C["Parse + clean"] --> D["Chunk"] --> E["Embed"] --> F["Persist + bump Corpus Version"]
+    A["Document and manifest"] --> B["Hash and identify"]
+    B --> C["Parse and clean"]
+    C --> D["Chunk and attach metadata"]
+    D --> E["Generate embeddings"]
+    E --> F["Persist records and provenance"]
 ```
 
 ### Query flow
 
 ```mermaid
 flowchart LR
-  Q["Question"] --> V["Validate"] --> E["Embed query"]
-  E --> D["Dense search"]
-  V --> L["Full-text search"]
-  D --> R["RRF"]
-  L --> R
-  R --> C["Evidence context"] --> G["Structured generation"] --> X["Citation validation"] --> O["Answer or abstention"]
+    A["Question"] --> B["Validate input"]
+    B --> C["Dense retrieval"]
+    B --> D["Lexical retrieval"]
+    C --> E["RRF fusion"]
+    D --> E
+    E --> F["Evidence context"]
+    F --> G["Structured generation"]
+    G --> H["Citation validation"]
+    H --> I["Answer or abstention"]
 ```
 
-## Technology stack (baseline, see [specification](docs/project-specification.md#7-technology-baseline))
+## Technology stack
 
-Python 3.14.6 · FastAPI · Pydantic v2 · SQLAlchemy 2.x async + asyncpg · Alembic · PostgreSQL + pgvector · Instructor · Chainlit · Redis (planned) · Langfuse (planned) · pytest · Ruff · GitHub Actions.
-Library compatibility with Python 3.14 is **unverified**. LLM and embedding providers are **not chosen**. Excluded: Pinecone, LangChain, LangGraph.
+| Area | Technology |
+|---|---|
+| Language | Python |
+| API | FastAPI |
+| Data validation | Pydantic v2 |
+| Database access | SQLAlchemy 2.x async |
+| Database driver | asyncpg |
+| Database | PostgreSQL with pgvector |
+| Database migrations | Alembic |
+| Embeddings and language models | Provider integration selected through configuration |
+| Retrieval | Vector similarity, PostgreSQL full-text search, and RRF |
+| Testing | pytest |
+| Code quality | Ruff |
+| Automation | GitHub Actions |
+| Interactive UI | Chainlit |
+| Caching | Redis |
+| Observability | Structured logging; Langfuse integration |
 
-## Prerequisites and setup
+The core architecture does not depend on LangChain, LangGraph, or Pinecone.
 
-Git Bash on Windows 11, Python 3.14.6, native PostgreSQL with pgvector. Step-by-step, with verification status: [development setup](docs/development-setup.md). Configuration: [.env.example](.env.example).
+Library compatibility, provider configuration, and deployment requirements must be verified against the actual development environment. Optional components should be introduced only when they provide a clear benefit.
 
-## Commands
+## Repository structure
 
-Not runnable yet; the code does not exist. Planned commands live in [development setup](docs/development-setup.md#7-migrations-ingestion-run-depend-on-planned-code):
+```text
+Advanced-RAG/
+├── .github/                 # CI and repository automation
+├── data/                    # Local data directories
+├── docs/                    # Project and technical documentation
+│   └── adr/                 # Architecture Decision Records
+├── evals/                   # Evaluation datasets and configuration
+├── migrations/              # Database migrations
+├── scripts/                 # Development and evaluation utilities
+├── src/
+│   └── advanced_rag/
+│       ├── api/             # HTTP routes and request/response schemas
+│       ├── config/          # Application configuration
+│       ├── db/              # Database models and repositories
+│       ├── embeddings/      # Embedding provider integration
+│       ├── evaluation/      # Retrieval and grounding evaluation
+│       ├── generation/      # Answer generation and validation
+│       ├── ingestion/       # Document processing pipeline
+│       ├── retrieval/       # Dense, lexical, and hybrid retrieval
+│       └── services/        # Application-level orchestration
+└── tests/
+    ├── unit/
+    ├── integration/
+    └── evaluation/
+```
 
-- Run tests, lint: **[Planned]**
-- Ingest sample documents: **[Planned]**, `python -m advanced_rag.ingestion <path>`
-- Run evaluation: **[Planned]**, `python -m advanced_rag.evaluation run --config <file>`
-- API: **[Planned]** `/v1/query`; UI: **[Planned]** Chainlit app ([api-and-ui](docs/api-and-ui.md))
+The directory tree describes the intended separation of responsibilities; individual modules are complete only when implemented and verified by tests.
 
-## Security and data limitations
+## Development environment
 
-No authentication in the baseline (local use only). Questions and evidence are sent to external providers. Retrieved documents are untrusted input. Corpus coverage is limited to what the owner ingests. See [security](docs/security.md) and [data sources](docs/data-sources.md).
+The primary development target is **Windows 11 with native PostgreSQL**. Development should remain local-first, with external API usage controlled through configuration.
+
+Before running the application:
+
+1. Install a compatible Python version and create a project virtual environment.
+2. Install PostgreSQL and configure pgvector.
+3. Configure environment variables using [.env.example](.env.example).
+4. Install the project dependencies.
+5. Apply database migrations and prepare the evaluation dataset.
+
+Follow [Development Setup](docs/development-setup.md) for the exact commands and environment checks. Do not assume that the application is runnable until setup and tests have succeeded.
+
+## Quality and evaluation
+
+Advanced-RAG is designed to be evaluated on retrieval quality, answer grounding, citation validity, and abstention behavior.
+
+Retrieval evaluation can include:
+
+- **Hit@K:** whether a relevant result appears in the top K.
+- **Recall@K:** the proportion of relevant evidence retrieved in the top K.
+- **MRR:** the reciprocal rank of the first relevant result.
+- **nDCG@K:** ranking quality that accounts for relevance and position.
+
+Answer evaluation should additionally check whether claims are supported by retrieved evidence, citations resolve to the correct source passages, and insufficient evidence triggers abstention.
+
+Metrics must be reported only after the evaluation harness has been run against a documented dataset. No benchmark scores or performance claims should be inferred from the architecture alone.
+
+See [Evaluation](docs/evaluation.md) and [Testing](docs/testing.md).
+
+## Security and limitations
+
+- Retrieved documents are untrusted input and may contain misleading instructions or content.
+- External model and embedding providers may receive questions and selected evidence passages.
+- The initial local-development configuration is not a substitute for production authentication, authorization, or operational security.
+- Corpus coverage depends on the documents actually ingested.
+- Document amendments, effective dates, and source provenance must be handled carefully.
+- Citation validation improves inspectability but does not prove legal correctness.
+
+Review [Security](docs/security.md), [Data Sources](docs/data-sources.md), and [Grounding and Abstention](docs/grounding-and-abstention.md).
 
 ## Roadmap
 
-1. **Phase 1:** ingestion, retrieval, generation, validation, API, evaluation, logs
-2. **Phase 2:** Chainlit UI, Langfuse
-3. **Phase 3:** Redis, SSE, optional reranking, deployment options
+Development follows this sequence:
 
-## Documentation map
+1. **Core pipeline:** configuration, database models, ingestion, embeddings, hybrid retrieval, RRF, structured generation, citations, and abstention.
+2. **API and evaluation:** API integration, automated tests, golden-set evaluation, and quality reporting.
+3. **Developer experience:** interactive UI, observability, and improved debugging.
+4. **Performance and deployment:** caching, streaming where justified, optional reranking, and deployment hardening.
+
+The sequence may change as implementation and evaluation reveal the most important gaps.
+
+## Documentation
 
 | Area | Documents |
 |---|---|
-| Requirements | [project-specification](docs/project-specification.md) · [glossary](docs/glossary.md) |
-| Architecture | [architecture](docs/architecture.md) · [data-flow](docs/data-flow.md) · [ADRs](docs/adr/README.md) |
-| Data | [data-sources](docs/data-sources.md) · [database](docs/database.md) · [ingestion](docs/ingestion.md) |
-| Retrieval and generation | [retrieval](docs/retrieval.md) · [generation](docs/generation.md) · [grounding-and-abstention](docs/grounding-and-abstention.md) |
-| Interfaces | [api-and-ui](docs/api-and-ui.md) |
-| Quality | [evaluation](docs/evaluation.md) · [testing](docs/testing.md) |
-| Operations | [observability](docs/observability.md) · [caching](docs/caching.md) · [deployment](docs/deployment.md) · [development-setup](docs/development-setup.md) |
-| Security | [security](docs/security.md) · [SECURITY.md](SECURITY.md) |
-| Learning | [learning-guide](docs/learning-guide.md) · [interview-guide](docs/interview-guide.md) |
-| Contributing | [CONTRIBUTING](CONTRIBUTING.md) |
+| Requirements | [Project Specification](docs/project-specification.md), [Glossary](docs/glossary.md) |
+| Architecture | [Architecture](docs/architecture.md), [Data Flow](docs/data-flow.md), [ADRs](docs/adr/README.md) |
+| Data | [Data Sources](docs/data-sources.md), [Database](docs/database.md), [Ingestion](docs/ingestion.md) |
+| Retrieval and generation | [Retrieval](docs/retrieval.md), [Generation](docs/generation.md), [Grounding and Abstention](docs/grounding-and-abstention.md) |
+| Interfaces | [API and UI](docs/api-and-ui.md) |
+| Quality | [Evaluation](docs/evaluation.md), [Testing](docs/testing.md) |
+| Operations | [Observability](docs/observability.md), [Caching](docs/caching.md), [Deployment](docs/deployment.md), [Development Setup](docs/development-setup.md) |
+| Security | [Security](docs/security.md), [Security Policy](SECURITY.md) |
+| Learning | [Learning Guide](docs/learning-guide.md), [Interview Guide](docs/interview-guide.md) |
+| Contribution | [Contributing](CONTRIBUTING.md) |
+
+## Disclaimer
+
+Advanced-RAG is an engineering and research project for exploring evidence-grounded question answering. It is not a substitute for advice from a qualified tax professional or lawyer. Users should consult the applicable official source and a qualified professional before making legal, financial, or tax decisions.
