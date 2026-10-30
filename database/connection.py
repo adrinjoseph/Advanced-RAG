@@ -26,3 +26,17 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+
+
+from sqlalchemy import text
+
+
+async def test_connection() -> None:
+    async with engine.connect() as connection:
+        result = await connection.execute(text("SELECT 1"))
+        print(f"Database connection successful: {result.scalar_one()}")
+
+
+async def close_database() -> None:
+    await engine.dispose()
