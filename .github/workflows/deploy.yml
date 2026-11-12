@@ -1,0 +1,16 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deallocate_after:
+        description: 'Deallocate VM after deployment'
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder deployment step
+        run: echo "Deployment workflow placeholder"
