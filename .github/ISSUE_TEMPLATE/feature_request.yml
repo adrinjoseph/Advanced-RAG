@@ -1,0 +1,84 @@
+name: Feature request
+description: Suggest a new feature or improvement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, check that it is not already in the
+        **out of scope** list in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+        Out-of-scope items (OCR, LangChain, streaming, reranker, multi-worker,
+        semantic caching, self-service registration) will be closed without
+        discussion.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: |
+        Describe the problem or limitation you are hitting, not the solution.
+        A good problem statement makes it easier to find the right solution.
+      placeholder: "When I upload a PDF that is mostly scanned, the system accepts it silently and returns garbage answers instead of a clear error."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen? Be specific about the behaviour, not just the goal.
+      placeholder: "Detect scanned PDFs earlier in the validation step and return a 422 with error_code=SCANNED_PDF, so the UI can show a clear message."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: What else could solve the problem? Why is your proposal better?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component would this affect?
+      options:
+        - Ingestion pipeline
+        - Query pipeline
+        - Retrieval (dense / BM25 / RRF)
+        - Citation / abstention
+        - Guardrails
+        - API endpoints
+        - Chainlit UI
+        - Evaluation harness
+        - Azure deployment
+        - CI / CD
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on eval metrics or explainability
+      description: |
+        Does this change affect any retrieval or generation metrics?
+        Does it make any part of the system harder to explain in an interview?
+        If yes, how would it be measured?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked CONTRIBUTING.md and this feature is not in the out-of-scope list.
+          required: true
+        - label: I searched existing issues and this has not been requested before.
+          required: true
+        - label: I am prepared to wait for feedback before writing any code.
+          required: true

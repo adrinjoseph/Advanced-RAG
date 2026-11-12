@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/adrinjoseph/advanced-rag/security/advisories/new
+    about: >
+      Do not use a public issue for security bugs.
+      Use GitHub's private vulnerability reporting instead.
+
+  - name: Question or discussion
+    url: https://github.com/adrinjoseph/advanced-rag/discussions
+    about: >
+      For questions about how the project works, design decisions,
+      or anything that is not a bug or a feature request, open a discussion.

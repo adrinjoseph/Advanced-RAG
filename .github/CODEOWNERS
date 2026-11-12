@@ -1,0 +1,8 @@
+# All files — Adrin is the sole owner and must review every PR.
+# Confirm your GitHub handle matches before committing this file.
+* @adrinjoseph
+
+# Spec and architecture docs — same owner, explicit for clarity
+/docs/ @adrinjoseph
+/infra/ @adrinjoseph
+*.md @adrinjoseph

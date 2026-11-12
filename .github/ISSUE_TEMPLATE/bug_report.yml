@@ -1,0 +1,95 @@
+name: Bug report
+description: Something is broken or behaving incorrectly
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Fill in as much detail
+        as you can — the more specific you are, the faster this gets fixed.
+
+        **Security bugs:** do NOT use this form. See [SECURITY.md](../SECURITY.md).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I upload a PDF with more than 100 pages, the status stays 'processing' forever."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "The document should reach 'indexed' status or fail with an error code."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, in order. Include the PDF type if relevant (page count, text vs scanned, etc.).
+      placeholder: |
+        1. Upload a 150-page research paper PDF
+        2. Wait for ingestion
+        3. Status is stuck at 'processing' after 10 minutes
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or error output
+      description: |
+        Paste any error messages, stack traces, or log lines.
+        Do NOT include secrets, API keys, or personal data.
+      render: text
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component is affected?
+      options:
+        - Ingestion pipeline (upload → indexed)
+        - Query pipeline (question → answer)
+        - Retrieval (dense / BM25 / RRF)
+        - Citation verification / abstention
+        - Guardrails (input / context / output)
+        - Auth / collections / documents API
+        - Chainlit UI
+        - Azure deployment / scripts
+        - CI / CD
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: How are you running this?
+      placeholder: |
+        - Running: local Docker Compose / Azure VM
+        - OS: Ubuntu 24.04 / macOS Sonoma / Windows 11 WSL2
+        - Docker version: 27.x
+        - Python version: 3.12
+        - Branch / commit SHA: main @ abc1234
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this has not been reported before.
+          required: true
+        - label: I am not reporting a security vulnerability (I will use the Security tab for that).
+          required: true
+        - label: I did not include secrets, API keys, or personal data in this report.
+          required: true
